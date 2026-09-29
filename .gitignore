@@ -1,0 +1,5 @@
+# Datos pesados: se descargan con scripts/descargar_datos.py
+datos/
+__pycache__/
+*.pyc
+.venv/

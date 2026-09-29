@@ -1,0 +1,29 @@
+# Parámetros generales de la redistritación.
+# Todos los valores de población usan la población georreferenciada del Censo 2024.
+
+poblacion:
+  objetivo: 90000      # habitantes por diputado
+  minimo: 80000        # límite duro para distritos normales
+  maximo: 100000       # límite duro para distritos normales
+
+centros_urbanos:
+  # Un centro urbano (conurbación INE o entidad urbana) con al menos esta población
+  # tiene distrito propio; si supera el máximo, se divide en distritos dentro de la ciudad.
+  umbral_distrito_propio: 80000
+
+# Pesos ajustables de los criterios (jerarquía por defecto: de mayor a menor).
+pesos:
+  equilibrio_poblacion: 1.0
+  tiempo_viaje: 0.6          # pueblos pequeños junto a su ciudad grande más cercana
+  compacidad: 0.4            # basada en tiempo de viaje; forma como criterio secundario
+  centralidad_centro: 0.3    # el centro principal cerca del centro del distrito
+  evitar_rios: 0.3           # preferencia fuerte, no prohibición
+  cordones_como_limite: 0.2  # divisorias de aguas como límite preferido
+  no_dividir_comunas: 0.5
+
+transbordadores:
+  # La espera cuenta: se suma la mitad del intervalo entre salidas.
+  espera: mitad_intervalo
+  intervalo_por_defecto_horas: 12   # si OSM no trae horario
+
+proyeccion_metrica: "EPSG:32719"    # UTM 19S, para áreas y distancias

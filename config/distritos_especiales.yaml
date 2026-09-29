@@ -1,0 +1,23 @@
+# Distritos especiales: se definen por comunas (código CUT) y quedan
+# fuera de los límites de población de los distritos normales.
+
+distritos_especiales:
+  - nombre: Rapa Nui
+    comunas: [5201]
+  - nombre: Juan Fernández
+    comunas: [5104]
+  - nombre: Tierra del Fuego
+    comunas: [12301, 12302, 12303]          # Porvenir, Primavera, Timaukel
+  - nombre: Puerto Williams
+    comunas: [12201]                        # Cabo de Hornos
+  - nombre: Territorio Chileno Antártico
+    comunas: [12202]                        # sin polígono ni población en la cartografía censal
+  - nombre: Cochrane
+    comunas: [11301, 11302, 11303]          # Cochrane, O'Higgins, Tortel
+  - nombre: Coyhaique
+    comunas: [11101, 11102, 11201, 11202, 11203, 11401, 11402]
+  - nombre: Natales
+    comunas: [12401, 12402]                 # Natales, Torres del Paine
+  - nombre: Punta Arenas
+    comunas: [12101, 12102, 12103, 12104]   # Punta Arenas, Laguna Blanca, Río Verde, San Gregorio
+    n_distritos: 2                          # la ciudad se divide en dos distritos
