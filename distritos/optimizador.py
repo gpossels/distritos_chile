@@ -212,16 +212,60 @@ def plan_inicial(pr: Problema, k_total: int, rng) -> np.ndarray:
     return asig
 
 
+def _contiguidad_biparticion(parte, nodos, pob, conexas):
+    """Los trozos sueltos de cada parte pasan a la otra, hasta que ambas son conexas."""
+    parte = parte.copy()
+    for _ in range(10):
+        cambio = False
+        for lado in (True, False):
+            idx = np.nonzero(parte == lado)[0]
+            if len(idx) == 0:
+                continue
+            lab = conexas(nodos[idx])
+            if lab.max() == 0:
+                continue
+            pl = np.bincount(lab, weights=pob[idx] + 1e-6)
+            parte[idx[lab != np.argmax(pl)]] = not lado
+            cambio = True
+        if not cambio:
+            break
+    return parte
+
+
+def _atomos(pr: Problema) -> np.ndarray:
+    """Agrupa unidades en átomos: cada trozo conexo de una comuna de hasta el
+    máximo de población es un átomo; en comunas mayores, cada unidad es un átomo."""
+    pob_com = np.bincount(pr.comuna, weights=pr.pob)
+    atomo = np.full(pr.n, -1)
+    misma = pr.comuna[pr.ea] == pr.comuna[pr.eb]
+    adj = sp.csr_matrix((np.ones(misma.sum()), (pr.ea[misma], pr.eb[misma])), shape=(pr.n, pr.n))
+    _, lab = connected_components(adj, directed=False)
+    entera = pob_com[pr.comuna] <= pr.max_pob
+    atomo[entera] = lab[entera]
+    sueltas = np.nonzero(~entera)[0]
+    atomo[sueltas] = lab.max() + 1 + np.arange(len(sueltas))
+    return pd.factorize(atomo)[0]
+
+
 def plan_biseccion(pr: Problema, k_total: int) -> np.ndarray:
     """Plan inicial por bisección recursiva según población.
 
-    Cada paso divide un conjunto conexo de unidades en dos partes conexas cuyas
-    poblaciones son proporcionales al número de distritos que recibe cada una.
-    Así cada zona del país recibe el número correcto de distritos desde el inicio.
+    Cada paso divide un conjunto conexo en dos partes conexas cuyas poblaciones
+    son proporcionales al número de distritos que recibe cada una. Así cada zona
+    del país recibe el número correcto de distritos desde el inicio. Los cortes
+    siguen límites comunales: se trabaja con átomos (comunas enteras de hasta el
+    máximo de población; unidades sueltas en las comunas mayores).
     """
-    n = pr.n
-    adj = sp.csr_matrix((np.ones(2 * len(pr.ea)),
-                         (np.concatenate([pr.ea, pr.eb]), np.concatenate([pr.eb, pr.ea]))),
+    at = _atomos(pr)
+    n = at.max() + 1
+    pob_at = np.bincount(at, weights=pr.pob)
+    xy_at = np.column_stack([
+        np.bincount(at, weights=pr.xy[:, i] * (pr.pob + 1e-6)) / np.bincount(at, weights=pr.pob + 1e-6)
+        for i in (0, 1)])
+    ea, eb = at[pr.ea], at[pr.eb]
+    m = ea != eb
+    adj = sp.csr_matrix((np.ones(2 * m.sum()),
+                         (np.concatenate([ea[m], eb[m]]), np.concatenate([eb[m], ea[m]]))),
                         shape=(n, n))
     asig = np.full(n, -1)
     siguiente = [0]
@@ -237,9 +281,9 @@ def plan_biseccion(pr: Problema, k_total: int) -> np.ndarray:
             siguiente[0] += 1
             return
         k1 = k // 2
-        pob = pr.pob[nodos].astype(float)
+        pob = pob_at[nodos]
         meta = pob.sum() * k1 / k
-        xy = pr.xy[nodos]
+        xy = xy_at[nodos]
         # Eje de corte: la dirección de mayor dispersión de la población.
         c = np.average(xy, axis=0, weights=pob + 1e-9)
         mejor = None
@@ -251,31 +295,30 @@ def plan_biseccion(pr: Problema, k_total: int) -> np.ndarray:
                 mejor = (disp, proy)
         orden = np.argsort(mejor[1])
         acum = np.cumsum(pob[orden])
-        corte = int(np.searchsorted(acum, meta))
-        parte = np.zeros(len(nodos), dtype=bool)
-        parte[orden[:corte + 1]] = True
-        # Contigüidad: los trozos sueltos de cada parte pasan a la otra.
-        for _ in range(10):
-            cambio = False
-            for lado in (True, False):
-                idx = np.nonzero(parte == lado)[0]
-                if len(idx) == 0:
-                    continue
-                lab = conexas(nodos[idx])
-                if lab.max() == 0:
-                    continue
-                pl = np.bincount(lab, weights=pob[idx] + 1e-6)
-                sueltos = idx[lab != np.argmax(pl)]
-                parte[sueltos] = not lado
-                cambio = True
-            if not cambio:
+        # Se recorta y se corrige la contigüidad; si la población de cada parte
+        # se aleja de la meta, se desplaza el corte y se repite.
+        objetivo_corte = meta
+        mejor_parte, mejor_err = None, np.inf
+        for _ in range(25):
+            corte = int(np.clip(np.searchsorted(acum, objetivo_corte), 0, len(nodos) - 2))
+            parte = np.zeros(len(nodos), dtype=bool)
+            parte[orden[:corte + 1]] = True
+            parte = _contiguidad_biparticion(parte, nodos, pob, conexas)
+            err = pob[parte].sum() - meta
+            if abs(err) < mejor_err and parte.any() and (~parte).any():
+                mejor_parte, mejor_err = parte, abs(err)
+            if abs(err) <= 0.01 * pob.sum() / k:
                 break
+            objetivo_corte -= err
+        parte = mejor_parte
+        # Número de distritos de cada parte según su población real.
+        k1 = int(np.clip(round(pob[parte].sum() / (pob.sum() / k)), 1, k - 1))
         dividir(nodos[parte], k1)
         dividir(nodos[~parte], k - k1)
 
-    # Cada componente del grafo es conexo gracias a los enlaces virtuales.
+    # El grafo es conexo gracias a los enlaces virtuales.
     dividir(np.arange(n), k_total)
-    return asig
+    return asig[at]
 
 
 # ---------------------------------------------------------------------------
@@ -310,7 +353,11 @@ class Estado:
                 u0 = m[np.argmax(pr.pob[m])]
                 self.centro[d] = pr.centro_cercano[u0]
                 mm = m
-            self.ancla[d] = mm[np.argmax(pr.pob[mm])]
+            # Ancla: unidad del centro principal más cercana al centro de población
+            # del distrito (no se mueve, para que el distrito conserve su centro).
+            w = pr.pob[m].astype(float) + 1e-6
+            c0 = np.average(pr.xy[m], axis=0, weights=w)
+            self.ancla[d] = mm[np.argmin(((pr.xy[mm] - c0) ** 2).sum(axis=1))]
         t = pr.T[self.centro[a], np.arange(pr.n)].astype(float)
         self.S1 = np.bincount(a, weights=pr.pob * t, minlength=k)
         self.S2 = np.bincount(a, weights=pr.pob * t * t, minlength=k)
@@ -472,8 +519,59 @@ class Estado:
 # ---------------------------------------------------------------------------
 # Búsqueda local
 # ---------------------------------------------------------------------------
+MAX_TROZO_UNIDADES = 80
+MAX_TROZO_POB = 30000
+
+
+def _trozo_comuna(est: Estado, u: int, A: int) -> list[int]:
+    """Trozo conexo de la comuna de u dentro del distrito A (incluye u)."""
+    pr = est.pr
+    c = pr.comuna[u]
+    trozo, vistos, cola = [u], {u}, deque([u])
+    while cola:
+        x = cola.popleft()
+        for y, _ in pr.vecinos[x]:
+            if y not in vistos and est.asig[y] == A and pr.comuna[y] == c:
+                vistos.add(y)
+                trozo.append(y)
+                if len(trozo) > MAX_TROZO_UNIDADES:
+                    return trozo
+                cola.append(y)
+    return trozo
+
+
+def _conexo(est: Estado, A: int) -> bool:
+    """¿Es conexo el distrito A? (BFS desde su ancla)."""
+    pr = est.pr
+    inicio = est.ancla[A]
+    vistos, cola = {inicio}, deque([inicio])
+    while cola:
+        x = cola.popleft()
+        for y, _ in pr.vecinos[x]:
+            if y not in vistos and est.asig[y] == A:
+                vistos.add(y)
+                cola.append(y)
+    return len(vistos) == len(est.miembros[A])
+
+
+def _mover_trozo(est: Estado, u: int, A: int, B: int, temp: float, rng) -> bool:
+    """Intenta mover a B todo el trozo de la comuna de u que está en A."""
+    pr = est.pr
+    trozo = _trozo_comuna(est, u, A)
+    if (len(trozo) > MAX_TROZO_UNIDADES or est.ancla[A] in trozo
+            or len(trozo) >= len(est.miembros[A]) or pr.pob[trozo].sum() > MAX_TROZO_POB):
+        return False
+    d = 0.0
+    for x in trozo:           # orden BFS desde u: cada unidad toca B al moverse
+        d += est.delta(x, A, B)
+        est.mover(x, A, B)
+    if (d <= 0 or rng.random() < math.exp(-d / temp)) and _conexo(est, A):
+        return True
+    for x in reversed(trozo):
+        est.mover(x, B, A)
+    return False
 def recocido(est: Estado, iteraciones: int, rng, t_ini=0.5, t_fin=0.002,
-             recalcular_cada=50000, informar=None) -> Estado:
+             recalcular_cada=50000, informar=None, prob_trozo=0.15) -> Estado:
     pr = est.pr
     ne = len(pr.ea)
     lote = 4096
@@ -498,6 +596,9 @@ def recocido(est: Estado, iteraciones: int, rng, t_ini=0.5, t_fin=0.002,
         if u == est.ancla[A] or len(est.miembros[A]) == 1:
             continue
         temp = t_ini * (t_fin / t_ini) ** (it / iteraciones)
+        if reales[(j + 1) % lote] < prob_trozo:
+            _mover_trozo(est, u, A, B, temp, rng)
+            continue
         d = est.delta(u, A, B)
         if d > 0 and rng.random() >= math.exp(-d / temp):
             continue
@@ -544,58 +645,99 @@ def _grafo_distritos(est: Estado) -> dict[int, set[int]]:
     return g
 
 
+def _trozo_colgante(est: Estado, u: int, X: int) -> list[int]:
+    """Unidades de X que quedan separadas del ancla si se quita u (incluye u), en orden BFS desde u."""
+    pr = est.pr
+    vistos = {u}
+    cola = deque([est.ancla[X]])
+    vistos.add(est.ancla[X])
+    while cola:
+        x = cola.popleft()
+        for y, _ in pr.vecinos[x]:
+            if y not in vistos and est.asig[y] == X:
+                vistos.add(y)
+                cola.append(y)
+    alcanzados = vistos - {u}
+    trozo, cola, marcados = [u], deque([u]), {u}
+    while cola:
+        x = cola.popleft()
+        for y, _ in pr.vecinos[x]:
+            if est.asig[y] == X and y not in alcanzados and y not in marcados:
+                marcados.add(y)
+                trozo.append(y)
+                cola.append(y)
+    return trozo
+
+
 def transferir(est: Estado, X: int, Y: int, cantidad: float) -> float:
-    """Mueve unas `cantidad` personas de X a Y por su borde común (mejor puntaje primero)."""
+    """Mueve unas `cantidad` personas de X a Y por su borde común (mejor puntaje primero).
+
+    Si una unidad del borde es la única unión de un trozo de X con el resto del
+    distrito, se mueve junto con ese trozo.
+    """
     pr = est.pr
     movido = 0.0
     while movido < cantidad:
+        resta = cantidad - movido
         mejor, mejor_d = None, math.inf
         for u in list(est.miembros[X]):
-            if u == est.ancla[X] or pr.pob[u] > (cantidad - movido) + 5000:
+            if u == est.ancla[X]:
                 continue
             if not any(est.asig[v] == Y for v, _ in pr.vecinos[u]):
                 continue
-            d = est.delta(u, X, Y)
-            if d < mejor_d and est.contiguo_sin(u, X):
-                mejor, mejor_d = u, d
-        if mejor is None or len(est.miembros[X]) == 1:
+            if est.contiguo_sin(u, X):
+                trozo = [u]
+            else:
+                trozo = _trozo_colgante(est, u, X)
+                if est.ancla[X] in trozo:
+                    continue
+            p = pr.pob[trozo].sum()
+            if p > resta + 5000 or len(trozo) >= len(est.miembros[X]):
+                continue
+            d = est.delta(u, X, Y) / max(len(trozo), 1)
+            if d < mejor_d:
+                mejor, mejor_d = trozo, d
+        if mejor is None:
             break
-        est.mover(mejor, X, Y)
-        movido += pr.pob[mejor]
+        for u in mejor:
+            est.mover(u, X, Y)
+        movido += pr.pob[mejor].sum()
     return movido
 
 
-def reparar(est: Estado, rondas: int = 200) -> int:
-    """Corrige distritos fuera de rango pasando población por cadenas de distritos."""
+def reparar(est: Estado, rondas: int = 1000) -> int:
+    """Corrige distritos fuera de rango pasando población por cadenas de distritos.
+
+    En cada ronda se busca (por cercanía en el grafo de distritos) el primer
+    distrito que pueda ceder o recibir población sin salir de rango, y se pasa
+    lo que ese distrito permite (hasta lo que falta) a lo largo del camino.
+    """
     pr = est.pr
+    margen = 2000
     for _ in range(rondas):
         fuera = np.nonzero((est.P < pr.min_pob) | (est.P > pr.max_pob))[0]
         if len(fuera) == 0:
             break
         D = int(fuera[np.argmax(np.abs(est.P[fuera] - pr.objetivo_pob))])
         falta = est.P[D] < pr.min_pob
-        cantidad = abs(pr.objetivo_pob - est.P[D]) if falta else est.P[D] - pr.objetivo_pob
+        necesario = (pr.min_pob + margen - est.P[D]) if falta else (est.P[D] - pr.max_pob + margen)
         g = _grafo_distritos(est)
-        # BFS al distrito más cercano que pueda ceder (o recibir) esa población.
         previo = {D: None}
         cola = deque([D])
-        fin = None
+        fin, cantidad = None, 0.0
         while cola:
             x = cola.popleft()
             if x != D:
-                if falta and est.P[x] - cantidad >= pr.min_pob + 2000:
-                    fin = x
-                    break
-                if not falta and est.P[x] + cantidad <= pr.max_pob - 2000:
-                    fin = x
+                holgura = (est.P[x] - pr.min_pob - margen) if falta else (pr.max_pob - margen - est.P[x])
+                if holgura >= 1000:
+                    fin, cantidad = x, min(necesario, holgura)
                     break
             for y in g[x]:
                 if y not in previo:
                     previo[y] = x
                     cola.append(y)
         if fin is None:
-            cantidad /= 2
-            continue
+            break
         camino = [fin]
         while previo[camino[-1]] is not None:
             camino.append(previo[camino[-1]])
@@ -603,6 +745,7 @@ def reparar(est: Estado, rondas: int = 200) -> int:
         if not falta:
             camino = camino[::-1]
         for X, Y in zip(camino[:-1], camino[1:]):
-            transferir(est, X, Y, cantidad)
+            if transferir(est, X, Y, cantidad) <= 0:
+                break
     est.recalcular()
     return int(((est.P < pr.min_pob) | (est.P > pr.max_pob)).sum())

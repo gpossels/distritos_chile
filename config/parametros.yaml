@@ -23,7 +23,7 @@ pesos:
   compacidad: 0.4            # basada en tiempo de viaje; forma como criterio secundario
   centralidad_centro: 0.3    # el centro principal cerca del centro del distrito
   evitar_rios: 0.3           # preferencia fuerte, no prohibición
-  no_dividir_comunas: 0.5
+  no_dividir_comunas: 1.5    # por cada trozo adicional de una comuna
 
 transbordadores:
   # La espera cuenta: se suma la mitad del intervalo entre salidas.
