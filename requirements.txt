@@ -7,4 +7,5 @@ numpy>=1.26
 pyyaml>=6.0
 networkx>=3.0
 scipy>=1.11
+matplotlib>=3.8
 osmium>=4.0

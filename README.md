@@ -50,7 +50,13 @@ python scripts/descargar_datos.py   # descarga los datos a datos/originales/
 python scripts/preparar_unidades.py # paso 1: unidades base y adyacencia (~4 min)
 python scripts/calcular_tiempos.py  # paso 2: red vial y tiempos de viaje (~7 min)
 python scripts/calcular_rios.py     # paso 3: bordes que siguen ríos principales (~1 min)
+python scripts/optimizar.py --planes 3   # paso 4: planes de distritos (~4 min por plan)
+python scripts/mapa_plan.py 1            # mapas PNG de un plan
 ```
+
+Resultados en `datos/resultados/`: `plan_N.csv` (unidad → distrito),
+`plan_N_resumen.csv` (población, centro principal, tiempos y comunas por distrito),
+`plan_N.gpkg` (polígonos, se abre en QGIS) y `planes.csv` (puntaje de cada plan).
 
 ## Unidades base
 
@@ -73,10 +79,25 @@ de los tiempos de viaje.
   el acceso se estima en línea recta × 1,3 a 20 km/h.
 - Islas sin transbordador: línea recta a 15 km/h más 24 h de penalidad.
 
+## Optimizador
+
+1. **Plan inicial**: bisección recursiva por población, cortando por límites
+   comunales (comunas de hasta 100.000 hab. enteras). Cada zona del país recibe
+   el número de distritos que corresponde a su población.
+2. **Recocido simulado**: mueve unidades de borde, o trozos enteros de comuna,
+   entre distritos vecinos sin romper la contigüidad, minimizando el puntaje
+   ponderado (pesos en `config/parametros.yaml`).
+3. **Reparación**: si un distrito queda fuera de 80.000–100.000, traspasa
+   población por una cadena de distritos hasta uno con holgura.
+
+Las islas se unen a la unidad más cercana de tierra firme para que un distrito
+pueda cruzar un canal (p. ej. Chacao). Punta Arenas se divide en dos distritos
+con el mismo método.
+
 ## Estado
 
 - [x] Paso 1: unidades base, adyacencia y centros urbanos
 - [x] Paso 2: tiempos de viaje (red vial y transbordadores de OSM)
 - [x] Paso 3: ríos principales
-- [ ] Paso 4: optimizador de distritos
+- [x] Paso 4: optimizador de distritos
 - [ ] Paso 5: mapa web local para ajustar los límites a mano
