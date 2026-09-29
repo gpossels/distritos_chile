@@ -20,8 +20,8 @@ centros_urbanos:
 pesos:
   equilibrio_poblacion: 1.0
   tiempo_viaje: 0.6          # pueblos pequeños junto a su ciudad grande más cercana
-  compacidad: 0.4            # basada en tiempo de viaje; forma como criterio secundario
-  centralidad_centro: 0.3    # el centro principal cerca del centro del distrito
+  compacidad: 0.8            # basada en tiempo de viaje; forma como criterio secundario
+  centralidad_centro: 0.6    # el centro principal cerca del centro del distrito
   evitar_rios: 0.3           # preferencia fuerte, no prohibición
   no_dividir_comunas: 1.5    # por cada trozo adicional de una comuna
 
