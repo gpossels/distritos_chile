@@ -23,7 +23,8 @@ def main() -> None:
     PROCESADOS.mkdir(parents=True, exist_ok=True)
 
     print("Construyendo unidades ...")
-    unidades, centros = construir_unidades(par["proyeccion_metrica"])
+    unidades, centros = construir_unidades(par["proyeccion_metrica"],
+                                          par["centros_urbanos"].get("fusiones"))
     print(f"  {len(unidades):,} unidades ({time.time() - t0:.0f} s)")
 
     print("Calculando adyacencia ...")

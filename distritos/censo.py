@@ -47,14 +47,19 @@ def _centroides_ponderados(puntos: gpd.GeoDataFrame, clave: str) -> pd.DataFrame
     return pd.DataFrame({"cx": g.wx / g.w, "cy": g.wy / g.w})
 
 
-def construir_unidades(crs: str) -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
-    """Devuelve (unidades, centros_urbanos)."""
+def construir_unidades(crs: str, fusiones: dict[str, str] | None = None
+                       ) -> tuple[gpd.GeoDataFrame, pd.DataFrame]:
+    """Devuelve (unidades, centros_urbanos).
+
+    `fusiones` asigna centros urbanos de INE a otro centro (p. ej. Coronel a Gran Concepción).
+    """
     # --- Centros urbanos: conurbación INE o, si no tiene, la entidad urbana.
     lim = _leer("Limite_Urbano_CPV24",
                 ["ID_ENTIDAD", "ENTIDAD", "COMUNA", "CATEGORIA", "CONURBACION", "n_per"],
                 geometria=False)
     conurb = lim["CONURBACION"].fillna("").str.strip()
     lim["centro_urbano"] = conurb.where(conurb != "", lim["ENTIDAD"])
+    lim["centro_urbano"] = lim["centro_urbano"].replace(fusiones or {})
     centros = (lim.groupby("centro_urbano")
                .agg(n_per=("n_per", "sum"),
                     comunas=("COMUNA", lambda s: ", ".join(sorted(set(s)))),

@@ -10,6 +10,9 @@ centros_urbanos:
   # Un centro urbano (conurbación INE o entidad urbana) con al menos esta población
   # tiene distrito propio; si supera el máximo, se divide en distritos dentro de la ciudad.
   umbral_distrito_propio: 80000
+  # Centros urbanos que INE separa pero que se tratan como parte de otro.
+  fusiones:
+    CORONEL: GRAN CONCEPCIÓN
 
 # Pesos ajustables de los criterios (jerarquía por defecto: de mayor a menor).
 pesos:
