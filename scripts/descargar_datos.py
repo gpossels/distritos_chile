@@ -11,9 +11,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from distritos.config import GDB_CENSO, ORIGINALES, PBF_OSM  # noqa: E402
 
 BASE = "https://github.com/gpossels/distritos_chile/releases/download/datos-v1/"
+# nombre en el release -> ruta final
 ARCHIVOS = {
     "Cartografia_censo2024_Pais.gdb.zip": GDB_CENSO,
-    "chile-latest.osm.pbf": PBF_OSM,
+    "chile-260928.osm.pbf": PBF_OSM,   # extracto de Geofabrik del 28-09-2026
 }
 
 
@@ -38,6 +39,8 @@ def main() -> None:
             with zipfile.ZipFile(destino) as z:
                 z.extractall(ORIGINALES)
             destino.unlink()
+        elif destino != final:
+            destino.rename(final)
     print("Listo.")
 
 

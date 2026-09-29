@@ -30,7 +30,7 @@ Coyhaique (resto de Aysén), Natales, y Punta Arenas (dos distritos).
 | Archivo | Fuente |
 |---|---|
 | `Cartografia_censo2024_Pais.gdb` | INE, cartografía del Censo 2024 con población por manzana, zona, localidad y entidad |
-| `chile-latest.osm.pbf` | OpenStreetMap (Geofabrik): red vial y transbordadores |
+| `chile-latest.osm.pbf` | OpenStreetMap (Geofabrik, 28-09-2026): red vial, transbordadores y ríos |
 
 Se usa la población **georreferenciada** (18.226.208 habitantes), la única que
 se puede asignar a un lugar del mapa.
