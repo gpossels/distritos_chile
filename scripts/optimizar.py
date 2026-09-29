@@ -27,7 +27,9 @@ INICIO = "biseccion"
 
 
 def cargar():
-    u = gpd.read_file(PROCESADOS / "unidades.gpkg", ignore_geometry=True)
+    u = gpd.read_file(PROCESADOS / "unidades.gpkg")
+    c = u.geometry.centroid
+    u = pd.DataFrame(u.drop(columns="geometry")).assign(gx=c.x.values, gy=c.y.values)
     ut = pd.read_csv(PROCESADOS / "unidades_tiempos.csv")
     u = u.merge(ut, on="id_unidad", how="left")
     ady = pd.read_csv(PROCESADOS / "adyacencia_tiempos.csv")
@@ -126,6 +128,13 @@ def main() -> None:
         plan.to_csv(RESULTADOS / f"plan_{n}.csv", index=False)
         resumen.to_csv(RESULTADOS / f"plan_{n}_resumen.csv", index=False)
         dis = geo.merge(plan, on="id_unidad").dissolve(by="distrito").reset_index()
+        # Compacidad geométrica: Polsby-Popper (4πA/P²) y área / envolvente convexa.
+        g = dis.geometry.simplify(100)
+        dis["polsby_popper"] = (4 * np.pi * g.area / g.length ** 2).round(3)
+        dis["envolvente_convexa"] = (g.area / g.convex_hull.area).round(3)
+        resumen = resumen.merge(dis[["distrito", "polsby_popper", "envolvente_convexa"]],
+                                on="distrito", how="left")
+        resumen.to_csv(RESULTADOS / f"plan_{n}_resumen.csv", index=False)
         dis = dis.merge(resumen[["distrito", "poblacion", "centro_principal"]], on="distrito")
         dis.to_file(RESULTADOS / f"plan_{n}.gpkg", layer="distritos", driver="GPKG")
 
@@ -134,6 +143,8 @@ def main() -> None:
         puntajes.append({"plan": n, "puntaje": round(est.puntaje(), 2),
                          "distritos": len(resumen),
                          "fuera_de_rango": int((~normales_r["en_rango"].astype(bool)).sum()),
+                         "polsby_popper_mediana": float(normales_r["polsby_popper"].median()),
+                         "envolvente_mediana": float(normales_r["envolvente_convexa"].median()),
                          **{k2: round(v, 2) for k2, v in comp.items()}})
         print(f"  Plan {n}: puntaje {est.puntaje():.1f}, {len(resumen)} distritos, "
               f"fuera de rango {puntajes[-1]['fuera_de_rango']} ({time.time() - t0:.0f} s)")

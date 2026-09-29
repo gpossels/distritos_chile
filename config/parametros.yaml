@@ -21,6 +21,7 @@ pesos:
   equilibrio_poblacion: 1.0
   tiempo_viaje: 0.6          # pueblos pequeños junto a su ciudad grande más cercana
   compacidad: 0.8            # basada en tiempo de viaje; forma como criterio secundario
+  forma: 10.0                # compacidad geométrica (momento de inercia; 0 = círculo)
   centralidad_centro: 0.6    # el centro principal cerca del centro del distrito
   evitar_rios: 0.3           # preferencia fuerte, no prohibición
   no_dividir_comunas: 1.5    # por cada trozo adicional de una comuna

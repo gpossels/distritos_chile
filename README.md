@@ -10,7 +10,9 @@ En orden de prioridad por defecto (los pesos se ajustan en `config/parametros.ya
 1. **Equilibrio de población**: entre 80.000 y 100.000 habitantes (límite duro).
 2. **Tiempo de viaje**: los pueblos pequeños quedan en el distrito de su ciudad
    grande más cercana (preferencia fuerte). Se incluyen transbordadores, contando la espera.
-3. **Compacidad**: medida por tiempo de viaje; la forma es un criterio secundario.
+3. **Compacidad**: tiempo de viaje al centro principal y forma geométrica
+   (momento de inercia del área respecto de un círculo de igual área).
+   El resumen de cada plan informa también Polsby-Popper y área / envolvente convexa.
 4. **Centralidad**: el centro urbano principal, cerca del centro del distrito.
 5. **Límites naturales**: los límites evitan seguir los ríos principales
    (preferencia fuerte; lista editable en `config/parametros.yaml`). Los cordones

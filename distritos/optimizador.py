@@ -13,6 +13,8 @@ Puntaje de un plan (menor es mejor), con los pesos de parametros.yaml:
                         penalidad grande fuera de [mínimo, máximo]
   compacidad            tiempo medio (min / 30) de la población al centro
                         principal del distrito, más el largo del borde (km / 100)
+  forma                 momento de inercia del área del distrito respecto del de
+                        un disco de igual área, menos 1 (0 = círculo)
   centralidad_centro    tiempo cuadrático medio (min / 30) al centro principal
   tiempo_viaje          población (/ 10.000) de pueblos separados del distrito
                         de su ciudad grande más cercana
@@ -45,6 +47,14 @@ class Problema:
         self.n = n
         self.pob = self.u["n_per"].to_numpy(dtype=np.int64)
         self.xy = self.u[["cx", "cy"]].to_numpy()
+        # Forma: centroide geométrico (km), área (km²) y momento propio de cada
+        # unidad (aproximada como disco: a²/2π), para el momento de inercia.
+        self.gx = self.u["gx"].to_numpy() / 1000
+        self.gy = self.u["gy"].to_numpy() / 1000
+        self.area = self.u["area_km2"].to_numpy()
+        self.a_x = self.area * self.gx
+        self.a_y = self.area * self.gy
+        self.a_xx = self.area * (self.gx ** 2 + self.gy ** 2) + self.area ** 2 / (2 * math.pi)
         pos = pd.Series(np.arange(n), index=self.u["id_unidad"].values)
 
         # Aristas reales (ambas unidades dentro del problema).
@@ -361,6 +371,10 @@ class Estado:
         t = pr.T[self.centro[a], np.arange(pr.n)].astype(float)
         self.S1 = np.bincount(a, weights=pr.pob * t, minlength=k)
         self.S2 = np.bincount(a, weights=pr.pob * t * t, minlength=k)
+        self.Ar = np.bincount(a, weights=pr.area, minlength=k)
+        self.Ax = np.bincount(a, weights=pr.a_x, minlength=k)
+        self.Ay = np.bincount(a, weights=pr.a_y, minlength=k)
+        self.Axx = np.bincount(a, weights=pr.a_xx, minlength=k)
         # Comunas: unidades por (comuna, distrito).
         self.cnt_com = defaultdict(int)
         for u, d in enumerate(a):
@@ -393,6 +407,15 @@ class Estado:
         fuera = max(pr.min_pob - P, 0) + max(P - pr.max_pob, 0)
         return x + (PENALIDAD_FUERA_RANGO * (fuera / 1000.0 + 1) if fuera > 0 else 0.0)
 
+    @staticmethod
+    def _fforma(A, Ax, Ay, Axx) -> float:
+        """Índice de forma por momento de inercia: 0 para un disco, crece con la
+        elongación o dispersión. Independiente del tamaño del distrito."""
+        if A <= 0:
+            return 0.0
+        inercia = max(Axx - (Ax * Ax + Ay * Ay) / A, 0.0)
+        return max(math.sqrt(2 * math.pi * inercia) / A - 1.0, 0.0)
+
     def _fv(self, P, S1, S2) -> float:
         w = self.pr.w
         Pn = max(P, 1)
@@ -408,6 +431,7 @@ class Estado:
         return {
             "equilibrio_poblacion": float(self._f_pob(self.P).sum()),
             "viaje_centro": float(self._f_viaje(self.P, self.S1, self.S2).sum()),
+            "forma": float(sum(self._fforma(*v) for v in zip(self.Ar, self.Ax, self.Ay, self.Axx))),
             "borde_km": float(pr.e_borde[corte].sum()),
             "rios_km": float(pr.e_rio[corte].sum()),
             "comunas_extra": int(comunas_extra),
@@ -418,6 +442,7 @@ class Estado:
         c, w = self.componentes_puntaje(), self.pr.w
         return (w["equilibrio_poblacion"] * c["equilibrio_poblacion"]
                 + c["viaje_centro"]
+                + w["forma"] * c["forma"]
                 + w["compacidad"] * c["borde_km"] / 100.0
                 + w["evitar_rios"] * c["rios_km"] / 10.0
                 + w["no_dividir_comunas"] * c["comunas_extra"]
@@ -435,6 +460,13 @@ class Estado:
         d += (self._fv(PA - p, s1A - p * tA, s2A - p * tA * tA)
               + self._fv(PB + p, s1B + p * tB, s2B + p * tB * tB)
               - self._fv(PA, s1A, s2A) - self._fv(PB, s1B, s2B))
+        # Forma (momento de inercia del área).
+        a, ax, ay, axx = pr.area[u], pr.a_x[u], pr.a_y[u], pr.a_xx[u]
+        fA0 = self._fforma(self.Ar[A], self.Ax[A], self.Ay[A], self.Axx[A])
+        fB0 = self._fforma(self.Ar[B], self.Ax[B], self.Ay[B], self.Axx[B])
+        fA1 = self._fforma(self.Ar[A] - a, self.Ax[A] - ax, self.Ay[A] - ay, self.Axx[A] - axx)
+        fB1 = self._fforma(self.Ar[B] + a, self.Ax[B] + ax, self.Ay[B] + ay, self.Axx[B] + axx)
+        d += w["forma"] * (fA1 + fB1 - fA0 - fB0)
         # Bordes y ríos.
         dr = db = 0.0
         for v, k in pr.vecinos[u]:
@@ -502,6 +534,10 @@ class Estado:
         self.S1[B] += p * tB
         self.S2[A] -= p * tA * tA
         self.S2[B] += p * tB * tB
+        for arr, v in ((self.Ar, pr.area[u]), (self.Ax, pr.a_x[u]),
+                       (self.Ay, pr.a_y[u]), (self.Axx, pr.a_xx[u])):
+            arr[A] -= v
+            arr[B] += v
         self.miembros[A].discard(u)
         self.miembros[B].add(u)
         self.asig[u] = B
