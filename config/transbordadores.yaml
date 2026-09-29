@@ -1,0 +1,13 @@
+# Ajustes manuales de transbordadores, por id de la vía en OSM (columna osm_id
+# de datos/procesados/transbordadores.csv). Corrige lo que OSM no informa.
+#
+#   intervalo_horas: horas entre salidas (la espera media es la mitad)
+#   duracion_horas:  duración de la travesía
+#   excluir: true    no usar esta ruta (p. ej. excursiones turísticas)
+#
+# Sin ajuste, el intervalo sale de OSM o, si no está, de
+# parametros.yaml -> transbordadores -> intervalo_por_defecto_horas.
+
+ajustes:
+  # 123456789:
+  #   intervalo_horas: 24

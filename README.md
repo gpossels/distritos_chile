@@ -45,7 +45,8 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 python scripts/descargar_datos.py   # descarga los datos a datos/originales/
-python scripts/preparar_unidades.py # paso 1: unidades base y adyacencia
+python scripts/preparar_unidades.py # paso 1: unidades base y adyacencia (~4 min)
+python scripts/calcular_tiempos.py  # paso 2: red vial y tiempos de viaje (~7 min)
 ```
 
 ## Unidades base
@@ -58,10 +59,21 @@ python scripts/preparar_unidades.py # paso 1: unidades base y adyacencia
 Cada unidad tiene su centroide ponderado por población, que se usa como origen
 de los tiempos de viaje.
 
+## Tiempos de viaje
+
+- Red vial de OSM tratada como no dirigida, con velocidad por tipo de vía y tope
+  de 40 km/h en ripio y tierra.
+- Transbordadores: travesía más espera media (mitad del intervalo entre salidas).
+  Si OSM no trae el intervalo se usa uno por defecto según la travesía (hasta 1,5 h:
+  cada 1 h; hasta 8 h: diario; más: semanal). Se corrigen en `config/transbordadores.yaml`.
+- Cada unidad se ubica en el vértice vial más cercano a su centroide ponderado;
+  el acceso se estima en línea recta × 1,3 a 20 km/h.
+- Islas sin transbordador: línea recta a 15 km/h más 24 h de penalidad.
+
 ## Estado
 
 - [x] Paso 1: unidades base, adyacencia y centros urbanos
-- [ ] Paso 2: tiempos de viaje (red vial y transbordadores de OSM)
+- [x] Paso 2: tiempos de viaje (red vial y transbordadores de OSM)
 - [ ] Paso 3: divisorias de aguas y ríos
 - [ ] Paso 4: optimizador de distritos
 - [ ] Paso 5: mapa web local para ajustar los límites a mano

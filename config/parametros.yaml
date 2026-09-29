@@ -13,6 +13,8 @@ centros_urbanos:
   # Centros urbanos que INE separa pero que se tratan como parte de otro.
   fusiones:
     CORONEL: GRAN CONCEPCIÓN
+    LOTA: GRAN CONCEPCIÓN
+    TOMÉ: GRAN CONCEPCIÓN
 
 # Pesos ajustables de los criterios (jerarquía por defecto: de mayor a menor).
 pesos:
@@ -26,7 +28,11 @@ pesos:
 
 transbordadores:
   # La espera cuenta: se suma la mitad del intervalo entre salidas.
-  espera: mitad_intervalo
-  intervalo_por_defecto_horas: 12   # si OSM no trae horario
+  # Si OSM no informa el intervalo, se usa uno por defecto según la travesía.
+  # Cada ruta se puede corregir en config/transbordadores.yaml.
+  intervalo_por_defecto_horas:
+    corto: 1      # travesía de hasta 1,5 h (balsas, cruces de canal)
+    medio: 24     # travesía de 1,5 a 8 h
+    largo: 168    # travesía de más de 8 h (rutas semanales)
 
 proyeccion_metrica: "EPSG:32719"    # UTM 19S, para áreas y distancias
