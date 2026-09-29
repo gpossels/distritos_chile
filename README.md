@@ -12,8 +12,10 @@ En orden de prioridad por defecto (los pesos se ajustan en `config/parametros.ya
    grande más cercana (preferencia fuerte). Se incluyen transbordadores, contando la espera.
 3. **Compacidad**: medida por tiempo de viaje; la forma es un criterio secundario.
 4. **Centralidad**: el centro urbano principal, cerca del centro del distrito.
-5. **Límites naturales**: se prefieren divisorias de aguas (cordillera de la Costa,
-   Nahuelbuta, cordones transversales del Norte Chico); se evitan los ríos (preferencia fuerte).
+5. **Límites naturales**: los límites evitan seguir los ríos principales
+   (preferencia fuerte; lista editable en `config/parametros.yaml`). Los cordones
+   montañosos quedan como límite de forma natural: sin caminos que los crucen,
+   el tiempo de viaje entre sus dos lados es alto.
 6. **Comunas**: se respetan sus límites siempre que se pueda; las ciudades de más
    de 100.000 habitantes se dividen en distritos dentro de la ciudad.
 
@@ -47,6 +49,7 @@ pip install -r requirements.txt
 python scripts/descargar_datos.py   # descarga los datos a datos/originales/
 python scripts/preparar_unidades.py # paso 1: unidades base y adyacencia (~4 min)
 python scripts/calcular_tiempos.py  # paso 2: red vial y tiempos de viaje (~7 min)
+python scripts/calcular_rios.py     # paso 3: bordes que siguen ríos principales (~1 min)
 ```
 
 ## Unidades base
@@ -74,6 +77,6 @@ de los tiempos de viaje.
 
 - [x] Paso 1: unidades base, adyacencia y centros urbanos
 - [x] Paso 2: tiempos de viaje (red vial y transbordadores de OSM)
-- [ ] Paso 3: divisorias de aguas y ríos
+- [x] Paso 3: ríos principales
 - [ ] Paso 4: optimizador de distritos
 - [ ] Paso 5: mapa web local para ajustar los límites a mano

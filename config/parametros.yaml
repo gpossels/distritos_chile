@@ -23,7 +23,6 @@ pesos:
   compacidad: 0.4            # basada en tiempo de viaje; forma como criterio secundario
   centralidad_centro: 0.3    # el centro principal cerca del centro del distrito
   evitar_rios: 0.3           # preferencia fuerte, no prohibición
-  cordones_como_limite: 0.2  # divisorias de aguas como límite preferido
   no_dividir_comunas: 0.5
 
 transbordadores:
@@ -34,5 +33,48 @@ transbordadores:
     corto: 1      # travesía de hasta 1,5 h (balsas, cruces de canal)
     medio: 24     # travesía de 1,5 a 8 h
     largo: 168    # travesía de más de 8 h (rutas semanales)
+
+# Ríos principales: los límites de distrito evitan seguirlos (preferencia fuerte).
+# Se toman de OSM por nombre; tramos con el mismo nombre de menos de
+# `largo_minimo_km` (ríos homónimos pequeños) se descartan; un río puede
+# indicar su propio mínimo con {nombre: ..., largo_minimo_km: ...}.
+rios:
+  largo_minimo_km: 20
+  distancia_m: 300        # un borde a menos de esta distancia del río se considera "sobre el río"
+  principales:
+    - Río Lluta
+    - Río San José
+    - Río Loa
+    - Río Copiapó
+    - Río Huasco
+    - Río Elqui
+    - Río Limarí
+    - Río Choapa
+    - Río Aconcagua
+    - Río Maipo
+    - Río Mapocho
+    - Río Rapel
+    - Río Cachapoal
+    - Río Tinguiririca
+    - Río Mataquito
+    - Río Maule
+    - Río Itata
+    - Río Ñuble
+    - Río Biobío
+    - Río Laja
+    - Río Imperial
+    - Río Cautín
+    - Río Toltén
+    - {nombre: Río Valdivia, largo_minimo_km: 5}   # estuario corto
+    - Río Calle Calle
+    - Río Bueno
+    - Río Maullín
+    - Río Puelo
+    - Río Yelcho
+    - Río Palena
+    - Río Cisnes
+    - Río Aysén
+    - Río Baker
+    - Río Pascua
 
 proyeccion_metrica: "EPSG:32719"    # UTM 19S, para áreas y distancias
